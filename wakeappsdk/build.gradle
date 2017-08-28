@@ -1,0 +1,24 @@
+apply plugin: 'java'
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'com.auth0:java-jwt:3.0.1'
+    compile 'com.mashape.unirest:unirest-java:1.4.9'
+    compile 'org.json:json:20140107'
+}
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"
+
+task deleteJar(type: Delete) {
+    delete 'libs/wakesdk.jar'
+}
+
+task createJar(type: Copy) {
+    from('build/intermediates/bundles/release/')
+    into('libs/jars/')
+    include('classes.jar')
+    rename('classes.jar', 'wakesdk.jar')
+}
+
+createJar.dependsOn(deleteJar, build)
