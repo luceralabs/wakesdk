@@ -1,20 +1,28 @@
+/**
+ * Created by gregory on 8/28/17.
+ */
+
 package com.luceralabs.wakesdk;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import java.util.Date;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.*;
-import org.apache.http.client.HttpClient;
 
-/**
- * Created by gregory on 8/28/17.
- */
+import java.util.Date;
+
+import com.mashape.unirest.http.*;
+import com.mashape.unirest.http.exceptions.*;
+import com.mashape.unirest.http.async.*;
+
+import java.util.StringTokenizer;
+import java.util.concurrent.*;
+import java.io.*;
 
 public class WakeSDK {
     private static String accessToken;
     private static String refreshToken;
+
+    private static final String baseUrl = "https://wakeuserapi.azurewebsites.net";
 
     /**
      * Sets the access token used during API calls
@@ -53,26 +61,74 @@ public class WakeSDK {
         WakeSDK.refreshToken = refreshToken;
     }
 
-    Future<HttpResponse<JsonNode>> future = Unirest.post("http://httpbin.org/post")
-            .header("accept", "application/json")
-            .field("param1", "value1")
-            .field("param2", "value2")
-            .asJsonAsync(new Callback<JsonNode>() {
+    private static String GetAccessToken() throws Exception {
+        try {
+            DecodedJWT decodedJWT = JWT.decode(accessToken);
+            if (decodedJWT.getExpiresAt().before(new Date())) {
+                /* TODO: Refresh token */
+                throw new Exception("Token is expired");
+            }
+            return accessToken;
+        } catch (JWTDecodeException exception) {
+            throw new Exception("Provided token was not valid", exception);
+        }
+    }
 
-                public void failed(UnirestException e) {
-                    System.out.println("The request has failed");
-                }
+    /**
+     * Sends a GET request to the Wakē user API
+     * @param endpoint to be called
+     * @return Future HttpResponse containing JSON data
+     */
+    private static Future<HttpResponse<JsonNode>> Get(String endpoint) throws Exception {
+        return Unirest.post(baseUrl + "/" + endpoint)
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + WakeSDK.GetAccessToken())
+                .asJsonAsync(new Callback<JsonNode>() {
 
-                public void completed(HttpResponse<JsonNode> response) {
-                    int code = response.getStatus();
-                    Map<String, String> headers = response.getHeaders();
-                    JsonNode body = response.getBody();
-                    InputStream rawBody = response.getRawBody();
-                }
+                    public void failed(UnirestException e) {
+                        System.out.println("The request has failed");
+                    }
 
-                public void cancelled() {
-                    System.out.println("The request has been cancelled");
-                }
+                    public void completed(HttpResponse<JsonNode> response) {
+                        int code = response.getStatus();
+                        JsonNode body = response.getBody();
+                        InputStream rawBody = response.getRawBody();
+                    }
 
-            });
+                    public void cancelled() {
+                        System.out.println("The request has been cancelled");
+                    }
+
+                });
+    }
+
+    /**
+     * Sends a POST request to the Wakē user API
+     * @param endpoint to be called
+     * @param data to be sent
+     * @return Future HttpResponse containing JSON data
+     */
+    private static Future<HttpResponse<JsonNode>> Post(String endpoint, JsonNode data) throws Exception {
+        return Unirest.post(baseUrl + "/" + endpoint)
+                .header("accept", "application/json")
+                .header("Authorization", "Bearer " + WakeSDK.GetAccessToken())
+                .body(data)
+                .asJsonAsync(new Callback<JsonNode>() {
+
+                    public void failed(UnirestException e) {
+                        System.out.println("The request has failed");
+                    }
+
+                    public void completed(HttpResponse<JsonNode> response) {
+                        int code = response.getStatus();
+                        JsonNode body = response.getBody();
+                        InputStream rawBody = response.getRawBody();
+                    }
+
+                    public void cancelled() {
+                        System.out.println("The request has been cancelled");
+                    }
+
+                });
+    }
 }
